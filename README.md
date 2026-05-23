@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# shapeshift-demo-dapp
 
-## Getting Started
+A deliberately minimal Next.js + wagmi dApp used as a demo target for the [shapeshift-mcp](https://github.com/swdiscordia/shapeshift-mcp) integration agent.
 
-First, run the development server:
+## Why this exists
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+We needed a realistic repo to validate the `integrate shapeshift` workflow end-to-end. This dApp has the patterns the playbook expects — a chain registry, a token registry, a swap-provider abstraction, an HTTP wrapper — but **no ShapeShift integration**. Pointing an agent at it should produce a clean before/after diff.
+
+## What's inside
+
+```
+src/
+├── app/
+│   ├── layout.tsx              wagmi + react-query providers wrap the app
+│   ├── page.tsx                landing showing the patterns the integration extends
+│   ├── swap/page.tsx           swap UI calling whichever provider is selected
+│   └── providers.tsx           WagmiProvider + QueryClientProvider
+├── config/
+│   ├── chains.ts               SUPPORTED_CHAINS — Ethereum, Base, Arbitrum
+│   └── wagmi.ts                createConfig() built from SUPPORTED_CHAINS
+├── data/
+│   └── tokens.ts               TOKENS_BY_CHAIN — ETH + USDC per chain
+├── lib/
+│   └── http.ts                 fetch wrapper (httpGet / httpPost / HttpError)
+└── swap/
+    └── providers/
+        ├── types.ts            SwapProvider interface
+        ├── mock.ts             demo provider returning a deterministic stub
+        └── index.ts            providers map
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Running locally
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+pnpm dev
+# → http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How to test the shapeshift-mcp integration
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Install the ShapeShift Claude Code plugin in your global config (or configure the MCP for your editor of choice). See [shapeshift-mcp / README](https://github.com/swdiscordia/shapeshift-mcp).
+2. Create a partner code at **https://dashboard.affiliate.shapeshift.com/** if you don't have one (free, ~1 minute) and `export SHAPESHIFT_PARTNER_CODE=<your-code>`. The integration works without one too; only affiliate attribution is missed.
+3. `git commit -am "checkpoint"` (the integration runs inside a git worktree, working tree must be clean).
+4. Open this repo in your editor and prompt: `integrate shapeshift, USDC and native asset only on receive`.
+5. Verify the agent:
+   - Creates a worktree `../shapeshift-demo-dapp-shapeshift-integrate-<date>`.
+   - Extends `src/config/chains.ts` and `src/data/tokens.ts` with ShapeShift chains/assets (marked with `// @shapeshift:integration` blocks).
+   - Creates `src/swap/providers/shapeshift.ts` mirroring `mock.ts`.
+   - Writes `shapeshift.config.json` at the repo root.
+   - The `/swap` page now lists a `shapeshift` provider that returns real quotes.
